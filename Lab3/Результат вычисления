@@ -1,0 +1,7 @@
+total = 0
+denominator = 2
+while denominator <= 10000:
+    total += 1 / denominator if denominator % 2 == 0 else -1 / denominator
+    denominator += 1
+
+print(total)
