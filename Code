@@ -1,0 +1,207 @@
+import android.content.Context;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.view.MotionEvent;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
+
+public class GameView extends SurfaceView implements Runnable {
+    private boolean isPlaying;
+    private Thread gameThread;
+    private Player player;
+    private Ball[] balls;
+    private int score;
+
+    public GameView(Context context) {
+        super(context);
+        player = new Player(context);
+        balls = new Ball[20];
+        for (int i = 0; i < 20; i++) {
+            balls[i] = new Ball(context);
+        }
+
+        score = 0;
+        isPlaying = true;
+        gameThread = new Thread(this);
+        gameThread.start();
+    }
+
+    @Override
+    public void run() {
+        while (isPlaying) {
+            update();
+            draw();
+            control();
+        }
+    }
+
+    private void update() {
+        player.update();
+        for (int i = 0; i < 20; i++) {
+            if (balls[i].isVisible()) {
+                balls[i].update();
+                if (player.collidesWith(balls[i])) {
+                    balls[i].setVisibility(false);
+                    score++;
+                    if (score == 20) {
+                        isPlaying = false;
+                    }
+                }
+            }
+        }
+    }
+
+    private void draw() {
+        if (getHolder().getSurface().isValid()) {
+            Canvas canvas = getHolder().lockCanvas();
+            canvas.drawColor(Color.WHITE);
+            player.draw(canvas);
+            for (int i = 0; i < 20; i++) {
+                if (balls[i].isVisible()) {
+                    balls[i].draw(canvas);
+                }
+            }
+            Paint paint = new Paint();
+            paint.setColor(Color.BLACK);
+            paint.setTextSize(30);
+            canvas.drawText("Score: " + score, 10, 30, paint);
+            getHolder().unlockCanvasAndPost(canvas);
+        }
+    }
+
+    private void control() {
+        try {
+            Thread.sleep(10);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        switch (event.getAction()) {
+            case MotionEvent.ACTION_MOVE:
+                player.setPosition(event.getX(), event.getY());
+                break;
+        }
+        return true;
+    }
+}
+///////--------------------------
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Rect;
+
+public class Player {
+    private Bitmap bitmap;
+    private float x, y;
+    private Rect collisionRect;
+
+    public Player(Context context) {
+        bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.player);
+        x = 0;
+        y = 0;
+        collisionRect = new Rect(0, 0, bitmap.getWidth(), bitmap.getHeight());
+    }
+
+    public void update() {
+        collisionRect.left = (int) x;
+        collisionRect.top = (int) y;
+        collisionRect.right = (int) x + bitmap.getWidth();
+        collisionRect.bottom = (int) y + bitmap.getHeight();
+    }
+
+    public void draw(Canvas canvas) {
+        canvas.drawBitmap(bitmap, x, y, null);
+    }
+
+    public boolean collidesWith(Ball ball) {
+        return collisionRect.intersect(ball.getCollisionRect());
+    }
+
+    public void setPosition(float x, float y) {
+        this.x = x - bitmap.getWidth() / 2;
+        this.y = y - bitmap.getHeight() / 2;
+    }
+}
+////-----------------
+
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Rect;
+
+public class Ball {
+    private Bitmap bitmap;
+    private float x, y;
+    private boolean isVisible;
+    private Rect collisionRect;
+
+    public Ball(Context context) {
+        bitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.ball);
+        x = (float) Math.random() * (GameActivity.screenWidth - bitmap.getWidth());
+        y = (float) Math.random() * (GameActivity.screenHeight - bitmap.getHeight());
+        isVisible = true;
+        collisionRect = new Rect(0, 0, bitmap.getWidth(), bitmap.getHeight());
+    }
+
+    public void update() {
+        // Логика обновления для шарика
+    }
+
+    public void draw(Canvas canvas) {
+        canvas.drawBitmap(bitmap, x, y, null);
+    }
+
+    public Rect getCollisionRect() {
+        return collisionRect;
+    }
+
+    public boolean isVisible() {
+        return isVisible;
+    }
+
+    public void setVisibility(boolean visible) {
+        isVisible = visible;
+    }
+}
+///-------
+изображения "player.png" и "ball.png" должны быть в папке 'res/drawable' нашего проекта.
+
+Затем мы создадим класс GameActivity, который будет содержать нашу игровую активность:
+import android.app.Activity;
+import android.os.Bundle;
+import android.view.Window;
+import android.view.WindowManager;
+
+public class GameActivity extends Activity {
+
+    public static int screenWidth;
+    public static int screenHeight;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // Удалить заголовок
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+        // Развернуть активность на весь экран
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                WindowManager.LayoutParams.FLAG_FULLSCREEN);
+
+        // Получить размеры экрана
+        screenWidth = getResources().getDisplayMetrics().widthPixels;
+        screenHeight = getResources().getDisplayMetrics().heightPixels;
+
+        // Установить игровое представление
+        setContentView(new GameView(this));
+    }
+}
+добававляем следующие разрешения в вашем файле AndroidManifest.xml:
+<uses-permission android:name="android.permission.WAKE_LOCK" />
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
